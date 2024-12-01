@@ -2,6 +2,7 @@
 import re
 import sqlite3
 import os
+import salaries
 #import unittest
 from nhlpy.api.query.builder import QueryBuilder, QueryContext
 from nhlpy.nhl_client import NHLClient
@@ -19,12 +20,22 @@ def get_player_data():
     ]
     query_builder = QueryBuilder()
     query_context: QueryContext = query_builder.build(filters=filters)
-    data = client.stats.skater_stats_with_query_context(
-        report_type='summary',
-        query_context=query_context,
-        aggregate=True
-    )
-    return data
+    start = 0
+    limit = 25
+    skater_stats = {"data": []}
+    while True:
+        response = client.stats.skater_stats_with_query_context(
+            report_type="summary",
+            query_context=query_context,
+            aggregate=False,
+            start=start,
+            limit=limit,
+        )
+        if not response["data"]:
+            break
+        skater_stats["data"].extend(response["data"])
+        start += limit
+    return skater_stats
 
 def set_up_database(db_name):
     """
@@ -75,8 +86,8 @@ def set_up_player_table(data, cur, conn):
     conn.commit()
 
 def main():
-    #set_up_player_table(get_player_data(), *set_up_database('players2324.db'))
-    print(get_player_data())
+    set_up_player_table(get_player_data(), *set_up_database('players2324.db'))
+    #print(get_player_data())
 
 
 main()
