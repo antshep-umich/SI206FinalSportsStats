@@ -1,106 +1,73 @@
 import requests
 from bs4 import BeautifulSoup
+import pandas as pd
+import time
 
-BASE_URL = "https://www.hockeydb.com"
+# Function to get page content with headers
 
-def get_team_links(main_url):
-    """Scrape team names and links from the main page."""
+
+def get_page_content(url):
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36'
     }
-    response = requests.get(main_url, headers=headers)
-    if response.status_code != 200:
-        raise Exception(f"Failed to load main page: {response.status_code}")
-    
-    soup = BeautifulSoup(response.text, "html.parser")
-    team_links = []
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    return BeautifulSoup(response.text, 'html.parser')
 
-    for link in soup.find_all("a", href=True):
-        if link["href"].startswith("/stte/"):  # Filter for team links
-            full_url = BASE_URL + link["href"]
-            team_links.append((link.text.strip(), full_url))
-    
+# Function to get all team links from the main NCAA page
+def get_team_links(base_url):
+    soup = get_page_content(base_url)
+    team_links = []
+    for td in soup.find_all('td', class_='tp'):  # Locate all <td> with class 'tp'
+        link_tag = td.find('a')
+        if link_tag and 'href' in link_tag.attrs:
+            team_links.append("https://www.hockeydb.com" + link_tag['href'])
     return team_links
 
+# Function to check if a team has an active 2023-2024 season and return the season link
 def get_season_link(team_url):
-    """Get the 2023-2024 season link from a team page."""
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
-    }
-    response = requests.get(team_url, headers=headers)
-    if response.status_code != 200:
-        raise Exception(f"Failed to load team page: {response.status_code}")
+    soup = get_page_content(team_url)
     
-    soup = BeautifulSoup(response.text, "html.parser")
+    # Locate the specific row containing the 2023-24 season
+    for row in soup.find_all('tr'):
+        season_link = row.find('a', href=True)
+        if season_link and '2023-24' in season_link.text:
+            return "https://www.hockeydb.com" + season_link['href']
     
-    # Find the link with text "2023-24"
-    link = soup.find("a", string="2023-24")
-    if link and "href" in link.attrs:
-        return BASE_URL + link["href"]
-    
-    print(f"No 2023-2024 season link found for {team_url}")
     return None
 
-def get_player_stats(season_url):
-    """Scrape player statistics from the season page."""
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
-    }
-    response = requests.get(season_url, headers=headers)
-    if response.status_code != 200:
-        raise Exception(f"Failed to load season page: {response.status_code}")
-    
-    soup = BeautifulSoup(response.text, "html.parser")
-    stats_table = soup.find("table", {"class": "sortable autostripe st"})
+# Function to scrape player data from the 2023-2024 season page
+def scrape_players(season_url, team_name):
+    soup = get_page_content(season_url)
+    players_data = []
+    table = soup.find('table')
+    if table:
+        for row in table.find_all('tr')[1:]:  # Skip the header row
+            cells = row.find_all('td')
+            if cells:
+                player = {
+                    'Team': team_name,
+                    'Name': cells[0].get_text(strip=True),
+                    'Position': cells[1].get_text(strip=True),
+                    'GP': cells[2].get_text(strip=True),
+                    'G': cells[3].get_text(strip=True),
+                    'A': cells[4].get_text(strip=True),
+                    'PTS': cells[5].get_text(strip=True),
+                    'PIM': cells[6].get_text(strip=True)
+                }
+                players_data.append(player)
+    return players_data
 
-    if not stats_table:
-        print(f"No stats table found at {season_url}")
-        return []
-
-    players = []
-    rows = stats_table.find_all("tr")[1:]  # Skip header row
-    for row in rows:
-        cells = row.find_all("td")
-        if len(cells) < 10:  # Ensure there are enough columns
-            continue
-        player = {
-            "Number": cells[0].text.strip(),
-            "Player Name": cells[1].text.strip(),
-            "Position": cells[2].text.strip(),
-            "Games Played": cells[3].text.strip(),
-            "Goals": cells[4].text.strip(),
-            "Assists": cells[5].text.strip(),
-            "Points": cells[6].text.strip(),
-            "Penalty Minutes": cells[7].text.strip(),
-            "Birthplace": cells[8].text.strip(),
-            "Age": cells[9].text.strip()
-        }
-        players.append(player)
-    
-    return players
-
+# Main function
 def main():
-    main_url = "https://www.hockeydb.com/ihdb/stats/team_data.php?x=99&y=16&tname=&tcity=&tstate=&tleague=NCAA&y1=2023&y2=2024&college=on"
-    team_links = get_team_links(main_url)
-    print(f"Found {len(team_links)} teams.")
-    
-    all_player_stats = []
-    
-    for team_name, team_link in team_links[:5]:  # Limit to 5 teams for testing
-        print(f"Processing team: {team_name}, Link: {team_link}")
-        season_link = get_season_link(team_link)
-        if not season_link:
-            print(f"No 2023-2024 season link found for team: {team_name}")
-            continue
-        
-        print(f"Processing season: {season_link}")
-        player_stats = get_player_stats(season_link)
-        all_player_stats.extend(player_stats)
-        print(f"Scraped {len(player_stats)} players from {team_name}")
+    base_url = "https://www.hockeydb.com/ihdb/stats/team_data.php?x=99&y=16&tname=&tcity=&tstate=&tleague=NCAA&y1=2023&y2=2024&college=on"
+    try:
+        soup = get_page_content(base_url)
+        print("Successfully fetched the page!")
+        # Add your scraping logic here
+    except requests.exceptions.HTTPError as e:
+        print(f"Error fetching page: {e}")
 
-    # Output all player stats
-    for player in all_player_stats:
-        print(player)
-
+# Run the script
 if __name__ == "__main__":
     main()
