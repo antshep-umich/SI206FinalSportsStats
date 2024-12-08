@@ -3,6 +3,7 @@ import re
 import sqlite3
 import os
 import salaries
+import PIM
 #import unittest
 from nhlpy.api.query.builder import QueryBuilder, QueryContext
 from nhlpy.nhl_client import NHLClient
@@ -85,8 +86,9 @@ def set_up_player_table(data, cur, conn):
     conn.commit()
 
 def main():
-    set_up_player_table(get_player_data(), *set_up_database('players2324.db'))
+    #set_up_player_table(get_player_data(), *set_up_database('players2324.db'))
     #print(get_player_data())
+    PIM.get_college_players(*set_up_database('players2324.db'))
 
 
 main()

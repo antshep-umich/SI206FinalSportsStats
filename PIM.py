@@ -42,6 +42,7 @@ def get_season_link(team_url):
 
 # Function to scrape player data from the 2023-2024 season page
 def scrape_players(season_url, team_name):
+
     soup = get_page_content(season_url)
     if not soup:
         return []
@@ -80,8 +81,7 @@ def save_scraped_team(team_name, csv_file="scraped_teams.csv"):
     scraped_teams = pd.concat([scraped_teams, pd.DataFrame({'Team': [team_name]})], ignore_index=True).drop_duplicates()
     scraped_teams.to_csv(csv_file, index=False)
 
-# Main function
-def main():
+def get_college_players(cur, conn):
     base_url = "https://www.hockeydb.com/ihdb/stats/team_data.php?x=99&y=16&tname=&tcity=&tstate=&tleague=NCAA&y1=2023&y2=2024&college=on"
     proxies = None  # Set proxy if needed
 
@@ -109,19 +109,37 @@ def main():
             save_scraped_team(team_name)
 
             # Add delay to avoid being blocked
-            time.sleep(2)
+            time.sleep(8)
 
         # Save all players data to a CSV
         if all_players_data:
             players_df = pd.DataFrame(all_players_data)
             players_df.to_csv("players_data.csv", index=False)
             print("Player data saved to players_data.csv.")
+            #Team,Number,Name,Position,GP,G,A,PTS,PIM
+            cur.execute(
+                "CREATE TABLE IF NOT EXISTS NCAAPlayers (player_id INTEGER PRIMARY KEY, name TEXT UNIQUE, games INTEGER, points INTEGER, penalty_min INTEGER, goals INTEGER, assists INTEGER)"
+            )
+            for player in players_df:
+                cur.execute(
+                    "INSERT OR IGNORE INTO NCAAPlayers (name, games, points, penalty_min, goals, assists) VALUES (?, ?, ?, ?, ?, ?)", 
+                    (player['Name'],player['GP'],player['PTS'],player['PIM'],player['G'],player['A'])
+                )
+            conn.commit()
         else:
-            print("No player data to save.")
+            print("Reading player data from CSV.")
+            players_df = pd.read_csv('players_data.csv')
+            cur.execute(
+                "CREATE TABLE IF NOT EXISTS NCAAPlayers (player_id INTEGER PRIMARY KEY, name TEXT UNIQUE, games INTEGER, points INTEGER, penalty_min INTEGER, goals INTEGER, assists INTEGER)"
+            )
+            for index, player in players_df.iterrows():
+                cur.execute(
+                    "INSERT OR IGNORE INTO NCAAPlayers (name, games, points, penalty_min, goals, assists) VALUES (?, ?, ?, ?, ?, ?)", 
+                    (player['Name'],player['GP'],player['PTS'],player['PIM'],player['G'],player['A'])
+                )
+            conn.commit()
 
     except Exception as e:
         print(f"An error occurred: {e}")
-
-# Run the script
-if __name__ == "__main__":
-    main()
+    
+    return None
