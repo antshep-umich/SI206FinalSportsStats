@@ -11,7 +11,6 @@ from nhlpy.api.query.filters.season import SeasonQuery
 from nhlpy.api.query.filters.game_type import GameTypeQuery
 from nhlpy.api.query.filters.position import PositionQuery, PositionTypes
 
-
 def get_player_data():
     client = NHLClient(verbose=True)
     filters = [
