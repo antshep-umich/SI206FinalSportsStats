@@ -28,14 +28,23 @@ def set_up_database(db_name):
     return cur, conn
 
 
-def get_player_points_pens(min_gp, min_pts, min_pen, cur, conn):
+def get_player_points_pens(table, min_gp, min_pts, min_pen, cur, conn):
     """
     Creates a list with all player points for players with at least a minimum number of games played
 
     Parameters
     -----------------------
+    table: str
+        Name of the table in the database.
+
     min_gp: int
         Minimum number of games played.
+    
+    min_pts: int
+        Minimum number of points scored.
+
+    min_pen: int
+        Minimum number of penalty minutes.
 
     cur: Cursor
         The database cursor object.
@@ -52,10 +61,10 @@ def get_player_points_pens(min_gp, min_pts, min_pen, cur, conn):
         A list containing entries for each player's penalty minute total.
     """
 
-    query = '''
+    query = f'''
     SELECT name, points, penalty_min, games 
-    FROM Players
-    WHERE games >= ?  and points >= ? or penalty_min >= ?
+    FROM {table}
+    WHERE games >= ? AND (points >= ? OR penalty_min >= ?)
     '''
     
     cur.execute(query, (min_gp, min_pts, min_pen))
@@ -72,7 +81,7 @@ def get_player_points_pens(min_gp, min_pts, min_pen, cur, conn):
 
     return Points, Penalty_min, Names
 
-def graph_points_pens(points, pens, names):
+def graph_points_pens(points, pens, names, min_pts, min_pens, league):
     """
     Creates a list with all player points for players with at least a minimum number of games played
 
@@ -95,9 +104,9 @@ def graph_points_pens(points, pens, names):
     plt.scatter(pens, points)
     plt.xlabel('Penalty Minutes')
     plt.ylabel('Points')
-    plt.title('2023-24 NHL Players Points vs. Penalty Minutes')
+    plt.title(f'2023-24 {league} Players Points vs. Penalty Minutes')
     for i, txt in enumerate(names):
-        if pens[i] >= 130 or points[i] >= 105:
+        if pens[i] >= min_pens or points[i] >= min_pts:
             plt.annotate(txt, (pens[i], points[i]))
     
     z = np.polyfit(pens, points, 1).round(2)
@@ -113,8 +122,12 @@ def graph_points_pens(points, pens, names):
 
 def main():
     cur, conn = set_up_database('players2324.db')
-    points, penalty_min, names = get_player_points_pens(41, 30, 40,  cur, conn)
-    graph_points_pens(points, penalty_min, names)
+    tables = {"Players": [41, 30, 40, 105, 130, "NHL"], "NCAAPlayers": [16, 12, 15, 55, 70, "NCAA"]}
+    for table, values in tables.items():
+        points, penalty_min, names = get_player_points_pens(table, values[0], values[1], values[2], cur, conn)
+        graph_points_pens(points, penalty_min, names, values[3], values[4], values[5])
+
+    
 
 main()
 
