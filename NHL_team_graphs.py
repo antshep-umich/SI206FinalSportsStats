@@ -139,12 +139,9 @@ def penalties_vs_goals_per_mil_graph(data):
 
     plt.show()
 
-def main():
+def team_graphs():
     filename = 'NHL_teams.csv'
     data = read_team_csv(filename)
     goals_per_mil_graph(data)
     penalties_per_mil_graph(data)
     penalties_vs_goals_per_mil_graph(data)
-
-if __name__ == "__main__":
-    main()

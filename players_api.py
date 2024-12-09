@@ -113,7 +113,9 @@ def add_salary(cur, conn):
             if player['nhl_id'] and int(player['nhl_id']) in players:
                 try:
                     cur.execute(
-                        "UPDATE Players SET salary = ? WHERE player_id = ?", (int(player['current'][0]['current_season_cap_hit']),int(player['nhl_id']))
+                        "UPDATE Players SET salary = ? WHERE player_id = ?", 
+                        (int(player['current'][0]['current_season_cap_hit']),
+                         int(player['nhl_id']))
                     )
                 except:
                     print("Failed to get contract data")

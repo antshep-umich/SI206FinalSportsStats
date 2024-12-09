@@ -5,6 +5,8 @@ import os
 import numpy as np
 from scipy import stats
 import seaborn as sns
+import NHL_team_graphs
+import NHL_team_success
 
 import matplotlib.pyplot as plt
 
@@ -216,6 +218,9 @@ def main():
     for table, values in tables2.items():
         pts_per_pen = get_pts_per_penalty_minute(table, values[0], values[1], values[2], cur, conn)
         graph_points_per_pen(pts_per_pen, values[3])
+    
+    NHL_team_graphs.team_graphs()
+    #NHL_team_success.write_csv()
 
     
 

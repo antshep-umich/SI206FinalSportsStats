@@ -118,10 +118,8 @@ def write_team_csv(data, filename):
 
 
 
-def main():
+def write_csv():
     cur, conn = set_up_database('players2324.db')
     data = get_info(cur, conn)
     write_team_csv(data, 'NHL_teams.csv')
     conn.close()
-
-main()
