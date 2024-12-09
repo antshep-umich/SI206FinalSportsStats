@@ -3,6 +3,8 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import time
 import os
+import sqlite3
+import csv
 
 # Function to get page content with headers
 def get_page_content(url, proxies=None):
@@ -143,3 +145,90 @@ def get_college_players(cur, conn):
         print(f"An error occurred: {e}")
     
     return None
+
+def set_up_ncaa_table(data, cur, conn):
+    """
+    Sets up the NCAA_Players and NCAA_Teams tables in the database using provided NCAA player data.
+
+    Parameters
+    -----------------------
+    data: list
+        List of NCAA player data in JSON or CSV format.
+
+    cur: Cursor
+        The database cursor object.
+
+    conn: Connection
+        The database connection object.
+
+    Returns
+    -----------------------
+    None
+    """
+    team_dict = {}
+    
+    # Create tables if they don't exist
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS NCAA_Players (player_id INTEGER PRIMARY KEY, name TEXT UNIQUE, team_id INTEGER, games INTEGER, points INTEGER, penalty_min INTEGER, avg_icetime INTEGER, goals INTEGER, assists INTEGER, plus_minus INTEGER, shooting_perc FLOAT)"
+    )
+    
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS NCAA_Teams (team_id INTEGER PRIMARY KEY, name TEXT)"
+    )
+    
+    # Loop through players and assign team_id
+    for player in data:
+        # Ensure that each team gets a unique team_id
+        if player['teamName'] not in team_dict:
+            team_dict[player['teamName']] = len(team_dict) + 1  # Ensuring unique IDs
+        
+        # Insert player data with corresponding team_id
+        cur.execute(
+            "INSERT OR IGNORE INTO NCAA_Players (player_id, name, team_id, games, points, penalty_min, avg_icetime, goals, assists, plus_minus, shooting_perc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (player['playerId'], player['playerName'], team_dict[player['teamName']],
+             player['gamesPlayed'], player['points'], player['penaltyMinutes'],
+             player['timeOnIcePerGame'], player['goals'], player['assists'],
+             player['plusMinus'], player['shootingPct'])
+        )
+    
+    # Insert teams into the NCAA_Teams table
+    for name, team_id in team_dict.items():
+        cur.execute(
+            "INSERT OR IGNORE INTO NCAA_Teams (team_id, name) VALUES (?, ?)",
+            (team_id, name)
+        )
+    
+    conn.commit()
+
+def parse_ncaa_data_from_csv(file_path):
+    """
+    Parses NCAA player data from a CSV file.
+
+    Parameters
+    -----------------------
+    file_path: str
+        Path to the CSV file.
+
+    Returns
+    -----------------------
+    List of dictionaries:
+        Parsed NCAA player data.
+    """
+    players = []
+    with open(file_path, 'r') as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            players.append({
+                'playerId': int(row['player_id']),
+                'playerName': row['name'],
+                'teamName': row['team_name'],
+                'gamesPlayed': int(row['games']),
+                'points': int(row['points']),
+                'penaltyMinutes': int(row['penalty_min']),
+                'timeOnIcePerGame': float(row['avg_icetime']),
+                'goals': int(row['goals']),
+                'assists': int(row['assists']),
+                'plusMinus': int(row['plus_minus']),
+                'shootingPct': float(row['shooting_perc']),
+            })
+    return players
