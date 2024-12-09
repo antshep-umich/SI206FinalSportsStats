@@ -109,7 +109,6 @@ def add_salary(cur, conn):
         players = cur.fetchall()
         players = [x[0] for x in players]
 
-        print(players)
         for player in data["data"]:
             if player['nhl_id'] and int(player['nhl_id']) in players:
                 try:
@@ -152,4 +151,4 @@ def main():
     #testpd()
 
 
-main()
+#main()
