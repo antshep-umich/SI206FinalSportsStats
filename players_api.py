@@ -1,5 +1,5 @@
 #from bs4 import BeautifulSoup
-import re
+import requests
 import sqlite3
 import os
 import PIM
@@ -93,11 +93,34 @@ def set_up_player_table(data, cur, conn):
                 "INSERT OR IGNORE INTO NHL_Teams (team_id, name) VALUES (?, ?)", (id, name)
             )
     conn.commit()
+    add_salary(cur,conn)
 
-def add_salary():
+def add_salary(cur, conn):
     with open("puckAPI.txt", "r") as file:
         apikey = file.read()  # Reads the entire file
-    print(apikey)
+    response = requests.get(apikey)
+    if response.status_code == 200:
+        # Parse the JSON response into a Python dict
+        data = response.json()
+
+        cur.execute(
+            "SELECT player_id FROM Players"
+        )
+        players = cur.fetchall()
+        players = [x[0] for x in players]
+
+        print(players)
+        for player in data["data"]:
+            if player['nhl_id'] and int(player['nhl_id']) in players:
+                try:
+                    cur.execute(
+                        "UPDATE Players SET salary = ? WHERE player_id = ?", (int(player['current'][0]['current_season_cap_hit']),int(player['nhl_id']))
+                    )
+                except:
+                    print("Failed to get contract data")
+        conn.commit()
+    else:
+        print(f"Request failed with status code {response.status_code}")
 
 def testpd():
     client = NHLClient(verbose=True)
@@ -123,11 +146,10 @@ def testpd():
     return None
 
 def main():
-    #set_up_player_table(get_player_data(), *set_up_database('players2324.db'))
+    set_up_player_table(get_player_data(), *set_up_database('players2324.db'))
     #print(get_player_data())
     #PIM.get_college_players(*set_up_database('players2324.db'))
     #testpd()
-    add_salary()
 
 
 main()
