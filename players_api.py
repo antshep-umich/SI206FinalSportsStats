@@ -75,20 +75,54 @@ def set_up_player_table(data, cur, conn):
     -----------------------
     None
     """
+    team_dict = {}
     cur.execute(
-            "CREATE TABLE IF NOT EXISTS Players (player_id INTEGER PRIMARY KEY, name TEXT UNIQUE, salary INTEGER, games INTEGER, points INTEGER, penalty_min INTEGER, avg_icetime INTEGER, goals INTEGER, assists INTEGER, plus_minus INTEGER, shooting_perc FLOAT)"
-        )
+            "CREATE TABLE IF NOT EXISTS Players (player_id INTEGER PRIMARY KEY, name TEXT UNIQUE, team_id INTEGER, salary INTEGER, games INTEGER, points INTEGER, penalty_min INTEGER, avg_icetime INTEGER, goals INTEGER, assists INTEGER, plus_minus INTEGER, shooting_perc FLOAT)"
+    )
+    cur.execute(
+            "CREATE TABLE IF NOT EXISTS NHL_Teams (team_id INTEGER PRIMARY KEY, name TEXT)"
+    )
     for player in data['data']:
+        if player['teamAbbrevs'] not in team_dict.keys():
+            team_dict[player['teamAbbrevs']] = len(team_dict)
         cur.execute(
-            "INSERT OR IGNORE INTO Players (name, salary, games, points, penalty_min, avg_icetime, goals, assists, plus_minus, shooting_perc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-            (player['skaterFullName'],None,player['gamesPlayed'],player['points'],player['penaltyMinutes'],player['timeOnIcePerGame'],player['goals'],player['assists'],player['plusMinus'],player['shootingPct'])
+            "INSERT OR IGNORE INTO Players (player_id, name, team_id, games, points, penalty_min, avg_icetime, goals, assists, plus_minus, shooting_perc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+            (player['playerId'],player['skaterFullName'], team_dict[player['teamAbbrevs']], player['gamesPlayed'],player['points'],player['penaltyMinutes'],player['timeOnIcePerGame'],player['goals'],player['assists'],player['plusMinus'],player['shootingPct'])
         )
+    for name, id in team_dict.items():
+        cur.execute(
+                "INSERT OR IGNORE INTO NHL_Teams (team_id, name) VALUES (?, ?)", (id, name)
+            )
     conn.commit()
 
+def testpd():
+    client = NHLClient(verbose=True)
+    filters = [
+        GameTypeQuery(game_type="2"),
+        SeasonQuery(season_start="20232024", season_end="20232024")
+    ]
+    query_builder = QueryBuilder()
+    query_context: QueryContext = query_builder.build(filters=filters)
+    start = 0
+    limit = 1
+    skater_stats = {"data": []}
+    response = client.stats.skater_stats_with_query_context(
+        report_type="summary",
+        query_context=query_context,
+        aggregate=False,
+        start=start,
+        limit=limit,
+    )
+    skater_stats["data"].extend(response["data"])
+    start += limit
+    print(skater_stats["data"])
+    return None
+
 def main():
-    #set_up_player_table(get_player_data(), *set_up_database('players2324.db'))
+    set_up_player_table(get_player_data(), *set_up_database('players2324.db'))
     #print(get_player_data())
-    PIM.get_college_players(*set_up_database('players2324.db'))
+    #PIM.get_college_players(*set_up_database('players2324.db'))
+    #testpd()
 
 
 main()

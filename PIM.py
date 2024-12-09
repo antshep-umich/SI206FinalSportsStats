@@ -120,7 +120,7 @@ def get_college_players(cur, conn):
             cur.execute(
                 "CREATE TABLE IF NOT EXISTS NCAAPlayers (player_id INTEGER PRIMARY KEY, name TEXT UNIQUE, games INTEGER, points INTEGER, penalty_min INTEGER, goals INTEGER, assists INTEGER)"
             )
-            for player in players_df:
+            for player in players_df.iterrows():
                 cur.execute(
                     "INSERT OR IGNORE INTO NCAAPlayers (name, games, points, penalty_min, goals, assists) VALUES (?, ?, ?, ?, ?, ?)", 
                     (player['Name'],player['GP'],player['PTS'],player['PIM'],player['G'],player['A'])
