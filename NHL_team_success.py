@@ -4,7 +4,7 @@ import json
 import os
 import numpy as np
 from scipy import stats
-
+import seaborn as sns
 import matplotlib.pyplot as plt
 
 
@@ -26,3 +26,17 @@ def set_up_database(db_name):
     conn = sqlite3.connect(path + "/" + db_name)
     cur = conn.cursor()
     return cur, conn
+
+
+#def write_goals_per_million_salary(table, min_gp, min_pts, min_pen, cur, conn):
+
+
+
+
+
+
+def main():
+    cur, conn = set_up_database('players2324.db')
+    
+
+main()
