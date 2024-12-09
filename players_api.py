@@ -2,15 +2,14 @@
 import re
 import sqlite3
 import os
-import salaries
 import PIM
 #import unittest
 from nhlpy.api.query.builder import QueryBuilder, QueryContext
 from nhlpy.nhl_client import NHLClient
-from nhlpy.api.query.filters.draft import DraftQuery
+#from nhlpy.api.query.filters.draft import DraftQuery
 from nhlpy.api.query.filters.season import SeasonQuery
 from nhlpy.api.query.filters.game_type import GameTypeQuery
-from nhlpy.api.query.filters.position import PositionQuery, PositionTypes
+#from nhlpy.api.query.filters.position import PositionQuery, PositionTypes
 
 def get_player_data():
     client = NHLClient(verbose=True)
@@ -95,6 +94,11 @@ def set_up_player_table(data, cur, conn):
             )
     conn.commit()
 
+def add_salary():
+    with open("puckAPI.txt", "r") as file:
+        apikey = file.read()  # Reads the entire file
+    print(apikey)
+
 def testpd():
     client = NHLClient(verbose=True)
     filters = [
@@ -119,10 +123,11 @@ def testpd():
     return None
 
 def main():
-    set_up_player_table(get_player_data(), *set_up_database('players2324.db'))
+    #set_up_player_table(get_player_data(), *set_up_database('players2324.db'))
     #print(get_player_data())
     #PIM.get_college_players(*set_up_database('players2324.db'))
     #testpd()
+    add_salary()
 
 
 main()
