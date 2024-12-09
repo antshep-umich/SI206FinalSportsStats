@@ -116,6 +116,8 @@ def write_team_csv(data, filename):
             csvwriter.writerow(row)
 
 
+
+
 def main():
     cur, conn = set_up_database('players2324.db')
     data = get_info(cur, conn)
