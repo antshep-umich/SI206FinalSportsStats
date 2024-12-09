@@ -76,7 +76,7 @@ def set_up_player_table(data, cur, conn):
     """
     team_dict = {}
     cur.execute(
-            "CREATE TABLE IF NOT EXISTS Players (player_id INTEGER PRIMARY KEY, name TEXT UNIQUE, team_id INTEGER, salary INTEGER, games INTEGER, points INTEGER, penalty_min INTEGER, avg_icetime INTEGER, goals INTEGER, assists INTEGER, plus_minus INTEGER, shooting_perc FLOAT)"
+            "CREATE TABLE IF NOT EXISTS Players (player_id INTEGER PRIMARY KEY, name TEXT, team_id INTEGER, salary INTEGER, games INTEGER, points INTEGER, penalty_min INTEGER, avg_icetime INTEGER, goals INTEGER, assists INTEGER, plus_minus INTEGER, shooting_perc FLOAT)"
     )
     cur.execute(
             "CREATE TABLE IF NOT EXISTS NHL_Teams (team_id INTEGER PRIMARY KEY, name TEXT)"
@@ -148,7 +148,7 @@ def testpd():
 def main():
     set_up_player_table(get_player_data(), *set_up_database('players2324.db'))
     #print(get_player_data())
-    #PIM.get_college_players(*set_up_database('players2324.db'))
+    PIM.get_college_players(*set_up_database('players2324.db'))
     #testpd()
 
 
