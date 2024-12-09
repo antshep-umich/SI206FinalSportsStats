@@ -207,12 +207,12 @@ def graph_points_per_pen(Points_per_pen, league):
 
 def main():
     cur, conn = set_up_database('players2324.db')
-    tables = {"Players": [41, 30, 40, 105, 130, "NHL"], "NCAAPlayers": [16, 12, 15, 55, 70, "NCAA"]}
+    tables = {"Players": [41, 30, 40, 105, 130, "NHL"], "NCAA_Players": [16, 12, 15, 55, 70, "NCAA"]}
     for table, values in tables.items():
         points, penalty_min, names = get_player_points_pens(table, values[0], values[1], values[2], cur, conn)
         graph_points_pens(points, penalty_min, names, values[3], values[4], values[5])
 
-    tables2 = {"Players": [10, 5, 5, "NHL"], "NCAAPlayers": [5, 2, 2, "NCAA"]}
+    tables2 = {"Players": [10, 5, 5, "NHL"], "NCAA_Players": [5, 2, 2, "NCAA"]}
     for table, values in tables2.items():
         pts_per_pen = get_pts_per_penalty_minute(table, values[0], values[1], values[2], cur, conn)
         graph_points_per_pen(pts_per_pen, values[3])
