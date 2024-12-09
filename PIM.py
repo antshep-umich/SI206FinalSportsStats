@@ -5,6 +5,7 @@ import time
 import os
 import sqlite3
 import csv
+import re
 
 # Function to get page content with headers
 def get_page_content(url, proxies=None):
@@ -119,27 +120,11 @@ def get_college_players(cur, conn):
             players_df.to_csv("players_data.csv", index=False)
             print("Player data saved to players_data.csv.")
             #Team,Number,Name,Position,GP,G,A,PTS,PIM
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS NCAAPlayers (player_id INTEGER PRIMARY KEY, name TEXT UNIQUE, games INTEGER, points INTEGER, penalty_min INTEGER, goals INTEGER, assists INTEGER)"
-            )
-            for player in players_df.iterrows():
-                cur.execute(
-                    "INSERT OR IGNORE INTO NCAAPlayers (name, games, points, penalty_min, goals, assists) VALUES (?, ?, ?, ?, ?, ?)", 
-                    (player['Name'],player['GP'],player['PTS'],player['PIM'],player['G'],player['A'])
-                )
-            conn.commit()
+            set_up_ncaa_table(players_df, cur, conn)
         else:
             print("Reading player data from CSV.")
             players_df = pd.read_csv('players_data.csv')
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS NCAAPlayers (player_id INTEGER PRIMARY KEY, name TEXT UNIQUE, games INTEGER, points INTEGER, penalty_min INTEGER, goals INTEGER, assists INTEGER)"
-            )
-            for index, player in players_df.iterrows():
-                cur.execute(
-                    "INSERT OR IGNORE INTO NCAAPlayers (name, games, points, penalty_min, goals, assists) VALUES (?, ?, ?, ?, ?, ?)", 
-                    (player['Name'],player['GP'],player['PTS'],player['PIM'],player['G'],player['A'])
-                )
-            conn.commit()
+            set_up_ncaa_table(players_df, cur, conn)
 
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -169,7 +154,7 @@ def set_up_ncaa_table(data, cur, conn):
     
     # Create tables if they don't exist
     cur.execute(
-        "CREATE TABLE IF NOT EXISTS NCAA_Players (player_id INTEGER PRIMARY KEY, name TEXT UNIQUE, team_id INTEGER, games INTEGER, points INTEGER, penalty_min INTEGER, avg_icetime INTEGER, goals INTEGER, assists INTEGER, plus_minus INTEGER, shooting_perc FLOAT)"
+        "CREATE TABLE IF NOT EXISTS NCAA_Players (player_id INTEGER PRIMARY KEY, name TEXT, team_id INTEGER, games INTEGER, points INTEGER, penalty_min INTEGER, goals INTEGER, assists INTEGER)"
     )
     
     cur.execute(
@@ -177,18 +162,17 @@ def set_up_ncaa_table(data, cur, conn):
     )
     
     # Loop through players and assign team_id
-    for player in data:
+    for index, player in data.iterrows():
         # Ensure that each team gets a unique team_id
-        if player['teamName'] not in team_dict:
-            team_dict[player['teamName']] = len(team_dict) + 1  # Ensuring unique IDs
+        team = re.search(r'[a-zA-Z\s]*', player['Team']).group().strip()
+        if team not in team_dict.keys():
+            team_dict[team] = len(team_dict) + 1  # Ensuring unique IDs
         
         # Insert player data with corresponding team_id
         cur.execute(
-            "INSERT OR IGNORE INTO NCAA_Players (player_id, name, team_id, games, points, penalty_min, avg_icetime, goals, assists, plus_minus, shooting_perc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (player['playerId'], player['playerName'], team_dict[player['teamName']],
-             player['gamesPlayed'], player['points'], player['penaltyMinutes'],
-             player['timeOnIcePerGame'], player['goals'], player['assists'],
-             player['plusMinus'], player['shootingPct'])
+            "INSERT OR IGNORE INTO NCAA_Players (name, team_id, games, points, penalty_min, goals, assists) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (player['Name'], team_dict[team],
+             player['GP'], player['PTS'], player['PIM'], player['G'], player['A'])
         )
     
     # Insert teams into the NCAA_Teams table
