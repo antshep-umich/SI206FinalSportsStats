@@ -209,7 +209,7 @@ def graph_points_per_pen(Points_per_pen, league):
 
 
 def main():
-    #players_api.get_data()
+    players_api.get_data()
 
     cur, conn = set_up_database('players2324.db')
     tables = {"Players": [41, 30, 40, 105, 130, "NHL"], "NCAA_Players": [16, 12, 15, 55, 70, "NCAA"]}

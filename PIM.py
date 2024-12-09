@@ -111,20 +111,14 @@ def get_college_players(cur, conn):
 
             save_scraped_team(team_name)
 
-            # Add delay to avoid being blocked
-            time.sleep(8)
 
-        # Save all players data to a CSV
+        # Save all players data to DB
         if all_players_data:
             players_df = pd.DataFrame(all_players_data)
-            players_df.to_csv("players_data.csv", index=False)
-            print("Player data saved to players_data.csv.")
-            #Team,Number,Name,Position,GP,G,A,PTS,PIM
             set_up_ncaa_table(players_df, cur, conn)
+            print("Player data written to database")
         else:
-            print("Reading player data from CSV.")
-            players_df = pd.read_csv('players_data.csv')
-            set_up_ncaa_table(players_df, cur, conn)
+            print("Could not retrieve data.")
 
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -171,7 +165,7 @@ def set_up_ncaa_table(data, cur, conn):
         # Ensure that each team gets a unique team_id
         team = re.search(r'[a-zA-Z\s]*', player['Team']).group().strip()
         if team not in team_dict.keys():
-            team_dict[team] = len(team_dict) + numteams  # Ensuring unique IDs
+            team_dict[team] = len(team_dict)  # Ensuring unique IDs
         
         # Insert player data with corresponding team_id
         cur.execute(
