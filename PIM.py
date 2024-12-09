@@ -64,7 +64,7 @@ def scrape_players(season_url, team_name):
                     'G': cells[4].get_text(strip=True),
                     'A': cells[5].get_text(strip=True),
                     'PTS': cells[6].get_text(strip=True),
-                    'PIM': cells[7].get_text(strip=True)
+                    'PIM': cells[7].get_text(strip=True) if cells[7].get_text(strip=True) else 0
                 }
                 players_data.append(player)
     return players_data
@@ -160,13 +160,18 @@ def set_up_ncaa_table(data, cur, conn):
     cur.execute(
         "CREATE TABLE IF NOT EXISTS NCAA_Teams (team_id INTEGER PRIMARY KEY, name TEXT)"
     )
+
+    cur.execute(
+        "SELECT team_id FROM NCAA_Teams"
+    )
+    numteams = len(cur.fetchall())
     
     # Loop through players and assign team_id
     for index, player in data.iterrows():
         # Ensure that each team gets a unique team_id
         team = re.search(r'[a-zA-Z\s]*', player['Team']).group().strip()
         if team not in team_dict.keys():
-            team_dict[team] = len(team_dict) + 1  # Ensuring unique IDs
+            team_dict[team] = len(team_dict) + numteams  # Ensuring unique IDs
         
         # Insert player data with corresponding team_id
         cur.execute(
@@ -208,11 +213,8 @@ def parse_ncaa_data_from_csv(file_path):
                 'teamName': row['team_name'],
                 'gamesPlayed': int(row['games']),
                 'points': int(row['points']),
-                'penaltyMinutes': int(row['penalty_min']),
-                'timeOnIcePerGame': float(row['avg_icetime']),
+                'penaltyMinutes': int(row['penalty_min']) if row['penalty_min'] else 0,
                 'goals': int(row['goals']),
                 'assists': int(row['assists']),
-                'plusMinus': int(row['plus_minus']),
-                'shootingPct': float(row['shooting_perc']),
             })
     return players

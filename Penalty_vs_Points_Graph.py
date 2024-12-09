@@ -7,6 +7,7 @@ from scipy import stats
 import seaborn as sns
 import NHL_team_graphs
 import NHL_team_success
+import players_api
 
 import matplotlib.pyplot as plt
 
@@ -208,6 +209,8 @@ def graph_points_per_pen(Points_per_pen, league):
 
 
 def main():
+    #players_api.get_data()
+
     cur, conn = set_up_database('players2324.db')
     tables = {"Players": [41, 30, 40, 105, 130, "NHL"], "NCAA_Players": [16, 12, 15, 55, 70, "NCAA"]}
     for table, values in tables.items():

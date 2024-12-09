@@ -146,7 +146,7 @@ def testpd():
     print(skater_stats["data"])
     return None
 
-def main():
+def get_data():
     set_up_player_table(get_player_data(), *set_up_database('players2324.db'))
     #print(get_player_data())
     PIM.get_college_players(*set_up_database('players2324.db'))
