@@ -12,6 +12,19 @@ from nhlpy.api.query.filters.game_type import GameTypeQuery
 #from nhlpy.api.query.filters.position import PositionQuery, PositionTypes
 
 def get_player_data():
+    """
+    Gets a dictionary containing all player stats from the 23/24 season from the NHL API.
+    Goes through a wrapper from https://github.com/coreyjs/nhl-api-py
+
+    Parameters
+    -----------------------
+    none
+
+    Returns
+    -----------------------
+    Dictionary {'data':[{player_id, name, games, points, penalty_min, avg_icetime, goals, assists, plus_minus, shooting_perc}]}:
+        A dictionary containing a list of players and their stats for the season.
+    """
     client = NHLClient(verbose=True)
     filters = [
         GameTypeQuery(game_type="2"),
@@ -20,7 +33,7 @@ def get_player_data():
     query_builder = QueryBuilder()
     query_context: QueryContext = query_builder.build(filters=filters)
     start = 0
-    limit = 25
+    limit = 100
     skater_stats = {"data": []}
     while True:
         response = client.stats.skater_stats_with_query_context(
@@ -57,12 +70,13 @@ def set_up_database(db_name):
 
 def set_up_player_table(data, cur, conn):
     """
-    Sets up the Players table in the database using the provided Pokemon data.
+    Sets up the Players table in the database using the provided NHL Player data.
+    Calls the add_salary function to get salary data and add it to the DB from the Puckpedia api.
 
     Parameters
     -----------------------
-    data: list
-        List of Player data in JSON format.
+    data: dictionary
+        dictionary of Player data in JSON format.
 
     cur: Cursor
         The database cursor object.
@@ -81,6 +95,14 @@ def set_up_player_table(data, cur, conn):
     cur.execute(
             "CREATE TABLE IF NOT EXISTS NHL_Teams (team_id INTEGER PRIMARY KEY, name TEXT)"
     )
+
+    cur.execute(
+            "SELECT player_id FROM Players"
+    )
+    playerLen = len(cur.fetchall())
+    if playerLen < 100:
+        data['data'] = data['data'][playerLen:playerLen+25]
+
     for player in data['data']:
         if player['teamAbbrevs'] not in team_dict.keys():
             team_dict[player['teamAbbrevs']] = len(team_dict)
@@ -96,6 +118,21 @@ def set_up_player_table(data, cur, conn):
     add_salary(cur,conn)
 
 def add_salary(cur, conn):
+    """
+    Adds player salary data from Puckpedia API.
+
+    Parameters
+    -----------------------
+    cur: Cursor
+        The database cursor object.
+
+    conn: Connection
+        The database connection object.
+
+    Returns
+    -----------------------
+    Nothing
+    """
     with open("puckAPI.txt", "r") as file:
         apikey = file.read()  # Reads the entire file
     response = requests.get(apikey)
@@ -147,10 +184,23 @@ def testpd():
     return None
 
 def get_data():
+    """
+    Calls the set_up_player_table function and the PIM.get_college_players function.
+
+    Parameters
+    -----------------------
+    Nothing
+
+    Returns
+    -----------------------
+    Nothing
+    """
     set_up_player_table(get_player_data(), *set_up_database('players2324.db'))
     #print(get_player_data())
     PIM.get_college_players(*set_up_database('players2324.db'))
     #testpd()
 
+#def main():
+    #get_data()
 
 #main()

@@ -1,19 +1,16 @@
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
-import time
-import os
 import sqlite3
-import csv
 import re
 
 # Function to get page content with headers
-def get_page_content(url, proxies=None):
+def get_page_content(url):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36'
     }
     try:
-        response = requests.get(url, headers=headers, proxies=proxies)
+        response = requests.get(url, headers=headers)
         response.raise_for_status()
         return BeautifulSoup(response.text, 'html.parser')
     except requests.exceptions.RequestException as e:
@@ -45,7 +42,6 @@ def get_season_link(team_url):
 
 # Function to scrape player data from the 2023-2024 season page
 def scrape_players(season_url, team_name):
-
     soup = get_page_content(season_url)
     if not soup:
         return []
@@ -57,158 +53,104 @@ def scrape_players(season_url, team_name):
             if cells and len(cells) >= 8:  # Ensure sufficient columns
                 player = {
                     'Team': team_name,
-                    'Number': cells[0].get_text(strip=True),
                     'Name': cells[1].get_text(strip=True),
                     'Position': cells[2].get_text(strip=True),
-                    'GP': cells[3].get_text(strip=True),
-                    'G': cells[4].get_text(strip=True),
-                    'A': cells[5].get_text(strip=True),
-                    'PTS': cells[6].get_text(strip=True),
-                    'PIM': cells[7].get_text(strip=True) if cells[7].get_text(strip=True) else 0
+                    'GP': int(cells[3].get_text(strip=True) or 0),
+                    'G': int(cells[4].get_text(strip=True) or 0),
+                    'A': int(cells[5].get_text(strip=True) or 0),
+                    'PTS': int(cells[6].get_text(strip=True) or 0),
+                    'PIM': int(cells[7].get_text(strip=True) or 0)
                 }
                 players_data.append(player)
     return players_data
 
-# Check if team data exists in the CSV
-def team_already_scraped(team_name, csv_file="scraped_teams.csv"):
-    if os.path.exists(csv_file):
-        scraped_teams = pd.read_csv(csv_file)
-        return team_name in scraped_teams['Team'].values
-    return False
+# Function to handle database interactions
+def set_up_ncaa_table(cur, conn):
+    # Create tables if not exist
+    cur.execute("CREATE TABLE IF NOT EXISTS NCAA_Teams (team_id INTEGER PRIMARY KEY, name TEXT UNIQUE)")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS NCAA_Players (
+            player_id INTEGER PRIMARY KEY,
+            name TEXT,
+            team_id INTEGER,
+            games INTEGER,
+            points INTEGER,
+            penalty_min INTEGER,
+            goals INTEGER,
+            assists INTEGER,
+            FOREIGN KEY(team_id) REFERENCES NCAA_Teams(team_id)
+        )
+    """)
+    conn.commit()
 
-# Add team to the CSV
-def save_scraped_team(team_name, csv_file="scraped_teams.csv"):
-    if not os.path.exists(csv_file):
-        pd.DataFrame(columns=['Team']).to_csv(csv_file, index=False)
-    scraped_teams = pd.read_csv(csv_file)
-    scraped_teams = pd.concat([scraped_teams, pd.DataFrame({'Team': [team_name]})], ignore_index=True).drop_duplicates()
-    scraped_teams.to_csv(csv_file, index=False)
+def insert_player_data(players, cur, conn):
+    # Track team IDs
+    team_ids = {}
 
+    # Insert team data and players
+    for player in players:
+        team_name = player['Team']
+        # Check if team exists; if not, insert it
+        if team_name not in team_ids:
+            cur.execute("INSERT OR IGNORE INTO NCAA_Teams (name) VALUES (?)", (team_name,))
+            cur.execute("SELECT team_id FROM NCAA_Teams WHERE name = ?", (team_name,))
+            team_ids[team_name] = cur.fetchone()[0]
+
+        # Insert player data
+        cur.execute("""
+            INSERT OR IGNORE INTO NCAA_Players (name, team_id, games, points, penalty_min, goals, assists)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (
+            player['Name'],
+            team_ids[team_name],
+            player['GP'],
+            player['PTS'],
+            player['PIM'],
+            player['G'],
+            player['A']
+        ))
+
+    conn.commit()
+
+# Main function to scrape and save data to the database
 def get_college_players(cur, conn):
     base_url = "https://www.hockeydb.com/ihdb/stats/team_data.php?x=99&y=16&tname=&tcity=&tstate=&tleague=NCAA&y1=2023&y2=2024&college=on"
     proxies = None  # Set proxy if needed
+    set_up_ncaa_table(cur, conn)
 
-    try:
-        team_links = get_team_links(base_url)
-        all_players_data = []
+    team_links = get_team_links(base_url)
 
-        for team_url in team_links:
-            team_name = team_url.split("/")[-1].replace("-", " ").title()
-            print(f"Checking team: {team_name}...")
+    for team_url in team_links:
+        team_name = team_url.split("/")[-1].replace("-", " ").title()
+        print(f"Checking team: {team_name}...")
 
-            if team_already_scraped(team_name):
-                print(f"Skipping {team_name} (already scraped).")
-                continue
+        # Check if the team is already in the database
+        cur.execute("SELECT team_id FROM NCAA_Teams WHERE name = ?", (team_name,))
+        if cur.fetchone():
+            print(f"Skipping {team_name} (already in database).")
+            continue
 
-            season_url = get_season_link(team_url)
-            if not season_url:
-                print(f"No active season found for {team_name}.")
-                continue
+        season_url = get_season_link(team_url)
+        if not season_url:
+            print(f"No active season found for {team_name}.")
+            continue
 
-            print(f"Active season found for {team_name}. Scraping player data...")
-            players_data = scrape_players(season_url, team_name)
-            all_players_data.extend(players_data)
+        print(f"Active season found for {team_name}. Scraping player data...")
+        players_data = scrape_players(season_url, team_name)
 
-            save_scraped_team(team_name)
-
-
-        # Save all players data to DB
-        if all_players_data:
-            players_df = pd.DataFrame(all_players_data)
-            set_up_ncaa_table(players_df, cur, conn)
-            print("Player data written to database")
+        # Save data to the database
+        if players_data:
+            insert_player_data(players_data, cur, conn)
+            print(f"Data for {team_name} added to the database.")
         else:
-            print("Could not retrieve data.")
+            print(f"No player data found for {team_name}.")
 
-    except Exception as e:
-        print(f"An error occurred: {e}")
-    
-    return None
+# Connect to the SQLite database and run the scraper
+"""if __name__ == "__main__":
+    conn = sqlite3.connect("players2324.db")
+    cur = conn.cursor()
 
-def set_up_ncaa_table(data, cur, conn):
-    """
-    Sets up the NCAA_Players and NCAA_Teams tables in the database using provided NCAA player data.
+    get_college_players(cur, conn)
 
-    Parameters
-    -----------------------
-    data: list
-        List of NCAA player data in JSON or CSV format.
-
-    cur: Cursor
-        The database cursor object.
-
-    conn: Connection
-        The database connection object.
-
-    Returns
-    -----------------------
-    None
-    """
-    team_dict = {}
-    
-    # Create tables if they don't exist
-    cur.execute(
-        "CREATE TABLE IF NOT EXISTS NCAA_Players (player_id INTEGER PRIMARY KEY, name TEXT, team_id INTEGER, games INTEGER, points INTEGER, penalty_min INTEGER, goals INTEGER, assists INTEGER)"
-    )
-    
-    cur.execute(
-        "CREATE TABLE IF NOT EXISTS NCAA_Teams (team_id INTEGER PRIMARY KEY, name TEXT)"
-    )
-
-    cur.execute(
-        "SELECT team_id FROM NCAA_Teams"
-    )
-    numteams = len(cur.fetchall())
-    
-    # Loop through players and assign team_id
-    for index, player in data.iterrows():
-        # Ensure that each team gets a unique team_id
-        team = re.search(r'[a-zA-Z\s]*', player['Team']).group().strip()
-        if team not in team_dict.keys():
-            team_dict[team] = len(team_dict)  # Ensuring unique IDs
-        
-        # Insert player data with corresponding team_id
-        cur.execute(
-            "INSERT OR IGNORE INTO NCAA_Players (name, team_id, games, points, penalty_min, goals, assists) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (player['Name'], team_dict[team],
-             player['GP'], player['PTS'], player['PIM'], player['G'], player['A'])
-        )
-    
-    # Insert teams into the NCAA_Teams table
-    for name, team_id in team_dict.items():
-        cur.execute(
-            "INSERT OR IGNORE INTO NCAA_Teams (team_id, name) VALUES (?, ?)",
-            (team_id, name)
-        )
-    
-    conn.commit()
-
-def parse_ncaa_data_from_csv(file_path):
-    """
-    Parses NCAA player data from a CSV file.
-
-    Parameters
-    -----------------------
-    file_path: str
-        Path to the CSV file.
-
-    Returns
-    -----------------------
-    List of dictionaries:
-        Parsed NCAA player data.
-    """
-    players = []
-    with open(file_path, 'r') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            players.append({
-                'playerId': int(row['player_id']),
-                'playerName': row['name'],
-                'teamName': row['team_name'],
-                'gamesPlayed': int(row['games']),
-                'points': int(row['points']),
-                'penaltyMinutes': int(row['penalty_min']) if row['penalty_min'] else 0,
-                'goals': int(row['goals']),
-                'assists': int(row['assists']),
-            })
-    return players
+    cur.close()
+    conn.close()"""
