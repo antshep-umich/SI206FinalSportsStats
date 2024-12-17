@@ -161,6 +161,16 @@ def add_salary(cur, conn):
         print(f"Request failed with status code {response.status_code}")
 
 def testpd():
+    """Just a test function
+
+    Parameters
+    -----------------------
+    Nothing
+
+    Returns
+    -----------------------
+    Nothing
+    """
     client = NHLClient(verbose=True)
     filters = [
         GameTypeQuery(game_type="2"),

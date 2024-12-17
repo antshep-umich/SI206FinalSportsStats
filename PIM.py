@@ -6,6 +6,18 @@ import re
 
 # Function to get page content with headers
 def get_page_content(url):
+    """
+    Takes a URL and returns a BeautifulSoup object from the response.
+
+    Parameters
+    -----------------------
+    URL:
+        A website URL
+
+    Returns
+    -----------------------
+    A BeautifulSoup object or nothing.
+    """
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36'
     }
@@ -19,6 +31,19 @@ def get_page_content(url):
 
 # Function to get all team links from the main NCAA page
 def get_team_links(base_url):
+    """
+    Gets all of the team URLs from the NCAA stats page with the teams listed.
+
+    Parameters
+    -----------------------
+    base_url:
+        The page URL for the NCAA team stats page.
+
+    Returns
+    -----------------------
+    team_links:
+        A list of URLs for the teams.
+    """
     soup = get_page_content(base_url)
     if not soup:
         return []
@@ -31,6 +56,19 @@ def get_team_links(base_url):
 
 # Function to check if a team has an active 2023-2024 season and return the season link
 def get_season_link(team_url):
+    """
+    Checks a team's URL to see if they have a team listed for the 2023-2024 season
+    and returns the link to that season's stats for the team.
+
+    Parameters
+    -----------------------
+    team_url:
+        A NCAA team's URL.
+
+    Returns
+    -----------------------
+    Nothing or a string with the URL for the 2023-2024 season for that team.
+    """
     soup = get_page_content(team_url)
     if not soup:
         return None
@@ -42,6 +80,22 @@ def get_season_link(team_url):
 
 # Function to scrape player data from the 2023-2024 season page
 def scrape_players(season_url, team_name):
+    """
+    Scrapes the player data from the 2023-2024 season stats for a team.
+
+    Parameters
+    -----------------------
+    season_url:
+        The URL from get_season_link for this team.
+
+    team_name:
+        The team this data is for
+
+    Returns
+    -----------------------
+    players_data:
+        A list of player dictionaries with each player's stats.
+    """
     soup = get_page_content(season_url)
     if not soup:
         return []
@@ -66,6 +120,21 @@ def scrape_players(season_url, team_name):
 
 # Function to handle database interactions
 def set_up_ncaa_table(cur, conn):
+    """
+    Creates the NCAA_Teams and NCAA_Players tables in the DB if they don't exist.
+
+    Parameters
+    -----------------------
+    cur:
+        The database cursor
+
+    conn:
+        The database connection
+
+    Returns
+    -----------------------
+    Nothing
+    """
     # Create tables if not exist
     cur.execute("CREATE TABLE IF NOT EXISTS NCAA_Teams (team_id INTEGER PRIMARY KEY, name TEXT UNIQUE)")
     cur.execute("""
@@ -84,6 +153,24 @@ def set_up_ncaa_table(cur, conn):
     conn.commit()
 
 def insert_player_data(players, cur, conn):
+    """
+    Iterates through the player data and adds any new data to the NCAA_Players table.
+
+    Parameters
+    -----------------------
+    players:
+        The list of player dictionaries from scrape_players
+    
+    cur:
+        The database cursor
+    
+    conn:
+        The database connection
+
+    Returns
+    -----------------------
+    Nothing
+    """
     # Track team IDs
     team_ids = {}
 
@@ -114,6 +201,21 @@ def insert_player_data(players, cur, conn):
 
 # Main function to scrape and save data to the database
 def get_college_players(cur, conn):
+    """
+    Utilizes the prior defined functions in PIM.py to scrape and add player data.
+
+    Parameters
+    -----------------------
+    cur:
+        database cursor
+    
+    conn:
+        database connection
+
+    Returns
+    -----------------------
+    Nothing
+    """
     base_url = "https://www.hockeydb.com/ihdb/stats/team_data.php?x=99&y=16&tname=&tcity=&tstate=&tleague=NCAA&y1=2023&y2=2024&college=on"
     proxies = None  # Set proxy if needed
     set_up_ncaa_table(cur, conn)

@@ -110,6 +110,18 @@ def penalties_per_mil_graph(data):
 
 
 def penalties_vs_goals_per_mil_graph(data):
+    """
+    Graphs penalties per million in salary against goals per million in salary.
+
+    Parameters
+    -----------------------
+    data: list of lists
+        A list of lists, each representing a row of the CSV file.
+
+    Returns
+    -----------------------
+    None
+    """
     teams = []
     penalties_per_million = []
     goals_per_million = []
@@ -140,6 +152,17 @@ def penalties_vs_goals_per_mil_graph(data):
     plt.show()
 
 def team_graphs():
+    """
+    Calls all the functions to do what this file does.
+
+    Parameters
+    -----------------------
+    None
+
+    Returns
+    -----------------------
+    None
+    """
     filename = 'NHL_teams.csv'
     data = read_team_csv(filename)
     goals_per_mil_graph(data)
